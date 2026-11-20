@@ -656,7 +656,8 @@ def flush_predictions(predictions, file_path):
             dataset.resize((dataset.shape[0] + predictions.shape[0]), axis=0)
             dataset[-predictions.shape[0]:] = predictions.numpy()
         else:
-            maxshape = (None,) + predictions.shape[1:]
+            # maxshape = (None,) + predictions.shape[1:]
+            maxshape = (None,) + tuple(predictions.shape[1:]) #In PyTorch, predictions.shape returns a torch.Size object, which behaves similarly to a tuple. However, Python does not allow every combination of sequence types to be concatenated using +. Explicitly converting the shape to a tuple ensures that
             f.create_dataset('predictions', data=predictions.numpy(), maxshape=maxshape, chunks=True)
 
 def get_prediction(models, dataset_path, device, batch_size, output_dir, flush_predict_threshold=500, debug=False):
