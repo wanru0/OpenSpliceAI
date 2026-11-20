@@ -31,35 +31,86 @@ def get_sequences_and_labels(db, output_dir, seq_dict, chrom_dict, train_or_test
     SEQ = []       # Nucleotide sequence
     LABEL = []     # Label for each nucleotide in the sequence
     for gene in db.features_of_type('gene'):
+        # if "exception" in gene.attributes.keys() and gene.attributes["exception"][0] == "trans-splicing":
+        #     continue
+        # if gene.seqid not in chrom_dict:
+        #     continue
+        # if biotype == "protein-coding":
+        #     if gene.attributes["gene_biotype"][0] != "protein_coding":
+        #         continue
+        # elif biotype == "non-coding":
+        #     if gene.attributes["gene_biotype"][0] != "lncRNA" and gene.attributes["gene_biotype"][0] != "ncRNA":
+        #         continue
+        # elif biotype == "all":
+        #     if gene.attributes["gene_biotype"][0] != "protein_coding" and gene.attributes["gene_biotype"][0] != "lncRNA" and gene.attributes["gene_biotype"][0] != "ncRNA":
+        #         continue
+        # else:
+        #     continue
+
+        
         if "exception" in gene.attributes.keys() and gene.attributes["exception"][0] == "trans-splicing":
             continue
+
         if gene.seqid not in chrom_dict:
             continue
+
+        # Support both gene_biotype and gene_type (GENCODE)
+        gene_biotype = gene.attributes.get(
+            "gene_biotype",
+            gene.attributes.get("gene_type", [None])
+        )[0]
+
         if biotype == "protein-coding":
-            if gene.attributes["gene_biotype"][0] != "protein_coding":
+            if gene_biotype != "protein_coding":
                 continue
+
         elif biotype == "non-coding":
-            if gene.attributes["gene_biotype"][0] != "lncRNA" and gene.attributes["gene_biotype"][0] != "ncRNA":
+            if gene_biotype != "lncRNA" and gene_biotype != "ncRNA":
                 continue
+
         elif biotype == "all":
-            if gene.attributes["gene_biotype"][0] != "protein_coding" and gene.attributes["gene_biotype"][0] != "lncRNA" and gene.attributes["gene_biotype"][0] != "ncRNA":
+            if gene_biotype != "protein_coding" and gene_biotype != "lncRNA" and gene_biotype != "ncRNA":
                 continue
+
         else:
             continue
+
         chrom_dict[gene.seqid] += 1
         gene_id = gene.id
 
         # Process the gene sequence
-        gene_seq = seq_dict[gene.seqid].seq[gene.start-1:gene.end].upper()  # Extract gene sequence
+        # gene_seq = seq_dict[gene.seqid].seq[gene.start-1:gene.end].upper()  # Extract gene sequence
+        # if gene.strand == '-':
+        #     gene_seq = gene_seq.reverse_complement() # reverse complement the sequence
+        # gene_seq = str(gene_seq.upper())
+        # print(f"\tProcessing gene {gene_id} on chromosome {gene.seqid}..., len(gene_seq): {len(gene_seq)}")
+        # labels = [0] * len(gene_seq)  # Initialize all labels to 0
+        # if biotype =="protein-coding":
+        #     transcripts = list(db.children(gene, featuretype='mRNA', order_by='start'))
+        # elif biotype =="non-coding":
+        #     transcripts = list(db.children(gene, level=1, order_by='start'))
+        # if len(transcripts) == 0:
+        #     continue
+        # elif len(transcripts) > 1:
+        #     print(f"\tGene {gene_id} has multiple transcripts: {len(transcripts)}")
+        
+        # Process the gene sequence, fix bug for using GENCODE version GFF 
+        gene_seq = seq_dict[gene.seqid].seq[gene.start-1:gene.end].upper()
         if gene.strand == '-':
-            gene_seq = gene_seq.reverse_complement() # reverse complement the sequence
+            gene_seq = gene_seq.reverse_complement()
         gene_seq = str(gene_seq.upper())
         print(f"\tProcessing gene {gene_id} on chromosome {gene.seqid}..., len(gene_seq): {len(gene_seq)}")
-        labels = [0] * len(gene_seq)  # Initialize all labels to 0
-        if biotype =="protein-coding":
+        labels = [0] * len(gene_seq)
+        # Retrieve transcripts based on biotype
+        if biotype == "protein-coding":
             transcripts = list(db.children(gene, featuretype='mRNA', order_by='start'))
-        elif biotype =="non-coding":
+        elif biotype == "non-coding":
             transcripts = list(db.children(gene, level=1, order_by='start'))
+        elif biotype == "all":
+            transcripts = list(db.children(gene, level=1, order_by='start'))
+        else:
+            raise ValueError(f"Unsupported biotype: {biotype}")
+
         if len(transcripts) == 0:
             continue
         elif len(transcripts) > 1:
